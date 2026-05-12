@@ -5,7 +5,7 @@ const pino = require('pino');
 const app = express();
 const port = process.env.PORT || 8080;
 
-// FRONTEND UI (Professional Design)
+// PROFESSIONAL UI DESIGN
 app.get('/', (req, res) => {
     res.send(`
         <!DOCTYPE html>
@@ -19,9 +19,8 @@ app.get('/', (req, res) => {
                 .box { background: #1e293b; padding: 40px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); text-align: center; width: 100%; max-width: 420px; border: 1px solid #334155; }
                 h1 { color: #38bdf8; font-size: 28px; margin-bottom: 5px; letter-spacing: 1px; }
                 p { color: #94a3b8; margin-bottom: 30px; font-size: 14px; }
-                .input-group { position: relative; margin-bottom: 20px; }
-                input { width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #334155; background: #0f172a; color: white; font-size: 16px; box-sizing: border-box; outline: none; transition: 0.3s; }
-                input:focus { border-color: #38bdf8; box-shadow: 0 0 10px rgba(56, 189, 248, 0.2); }
+                input { width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #334155; background: #0f172a; color: white; font-size: 16px; box-sizing: border-box; outline: none; transition: 0.3s; margin-bottom: 20px; }
+                input:focus { border-color: #38bdf8; }
                 button { width: 100%; padding: 15px; border-radius: 12px; border: none; background: #38bdf8; color: #0f172a; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; }
                 button:hover { background: #7dd3fc; transform: translateY(-2px); }
                 #displayCode { margin-top: 25px; padding: 20px; border-radius: 12px; background: #000; color: #10b981; font-size: 32px; font-weight: bold; letter-spacing: 4px; display: none; border: 2px dashed #10b981; }
@@ -30,41 +29,34 @@ app.get('/', (req, res) => {
         </head>
         <body>
             <div class="box">
-                <h1>DANI-MD</h1>
-                <p>Pair your WhatsApp number easily</p>
-                <div class="input-group">
-                    <input type="number" id="phoneNumber" placeholder="e.g. 923259379507">
-                </div>
+                <h1>DANI-MD PAIRING SITE</h1>
+                <p>Enter number with country code (e.g. 923...)</p>
+                <input type="number" id="phoneNumber" placeholder="923xxxxxxxxx">
                 <button onclick="requestCode()">GENERATE CODE</button>
-                <div id="loading" class="loading">CONNECTING TO WHATSAPP...</div>
+                <div id="loading" class="loading">CONNECTING TO WHATSAPP DEAR...</div>
                 <div id="displayCode"></div>
             </div>
-
             <script>
                 async function requestCode() {
                     const num = document.getElementById('phoneNumber').value;
                     const codeDiv = document.getElementById('displayCode');
                     const loadDiv = document.getElementById('loading');
-                    
                     if(!num || num.length < 10) return alert('Sahi number enter karein!');
-                    
                     codeDiv.style.display = 'none';
                     loadDiv.style.display = 'block';
-                    
                     try {
                         const response = await fetch('/pair?number=' + num);
                         const data = await response.json();
                         loadDiv.style.display = 'none';
-                        
                         if(data.code) {
                             codeDiv.style.display = 'block';
                             codeDiv.innerText = data.code;
                         } else {
-                            alert(data.error || data.message || 'Error occurred');
+                            alert(data.error || 'Server Busy, Try Again');
                         }
                     } catch (e) {
                         loadDiv.style.display = 'none';
-                        alert('Server error! Try again.');
+                        alert('Error! Check Connection.');
                     }
                 }
             </script>
@@ -73,33 +65,36 @@ app.get('/', (req, res) => {
     `);
 });
 
-// BACKEND PAIRING LOGIC
+// BACKEND LOGIC WITH FIXED BROWSER IDENTIFICATION
 app.get('/pair', async (req, res) => {
     let phone = req.query.number;
     if (!phone) return res.json({ error: "Number missing!" });
 
     try {
-        // Har baar naya session create hoga taake har user apna naya code le sakay
+        // Naya unique session create karna har request ke liye
         const { state } = await useMultiFileAuthState('session_' + Math.random().toString(36).substring(7));
+        
         const sock = makeWASocket({
             auth: state,
             printQRInTerminal: false,
             logger: pino({ level: "silent" }),
-            browser: ["Ubuntu", "Chrome", "20.0.04"],
+            // YE HAI FIX: WhatsApp ab ise real Chrome samjhega
+            browser: ["Chrome (Linux)", "", ""] 
         });
 
         if (!sock.authState.creds.registered) {
-            await delay(2000);
+            await delay(3000); // 3 seconds wait taake socket stable ho jaye
             const code = await sock.requestPairingCode(phone.replace(/[^0-9]/g, ''));
             res.json({ code: code });
         } else {
             res.json({ message: "Already Linked" });
         }
     } catch (e) {
-        res.json({ error: "Server Busy, try again" });
+        console.log(e);
+        res.json({ error: "Server Busy" });
     }
 });
 
-app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
+app.listen(port, "0.0.0.0", () => {
+    console.log(`Server live on port ${port}`);
 });
