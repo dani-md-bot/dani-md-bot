@@ -81,8 +81,8 @@ app.get('/pair', async (req, res) => {
             printQRInTerminal: false,
             logger: pino({ level: "silent" }),
             // BROWSER FIX FOR FAST LINKING
-            browser: ["Mac OS", "Chrome", "10.15.7"],
-            connectTimeoutMs: 60000,
+            browser: ["Ubuntu", "Chrome", "20.0.04"],
+            connectTimeoutMs: 120000,
             defaultQueryTimeoutMs: 0,
             keepAliveIntervalMs: 10000,
             emitOwnEvents: true
