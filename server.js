@@ -59,7 +59,7 @@ app.get('/pair', async (req, res) => {
             auth: state,
             printQRInTerminal: false,
             logger: pino({ level: "silent" }),
-            browser: ["Chrome (Linux)", "", ""]
+            browser: ["Mac OS", "Chrome", "10.15.7"]
         });
 
         if (!sock.authState.creds.registered) {
