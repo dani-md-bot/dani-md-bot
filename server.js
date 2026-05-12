@@ -29,11 +29,11 @@ app.get('/', (req, res) => {
         </head>
         <body>
             <div class="box">
-                <h1>DANI-MD PAIRING SITE</h1>
+                <h1>DANI-MD</h1>
                 <p>Enter number with country code (e.g. 923...)</p>
                 <input type="number" id="phoneNumber" placeholder="923xxxxxxxxx">
                 <button onclick="requestCode()">GENERATE CODE</button>
-                <div id="loading" class="loading">CONNECTING TO WHATSAPP DEAR...</div>
+                <div id="loading" class="loading">PLEASE WAIT, SYNCING...</div>
                 <div id="displayCode"></div>
             </div>
             <script>
@@ -56,7 +56,7 @@ app.get('/', (req, res) => {
                         }
                     } catch (e) {
                         loadDiv.style.display = 'none';
-                        alert('Error! Check Connection.');
+                        alert('Error! Connection Issue.');
                     }
                 }
             </script>
@@ -65,25 +65,26 @@ app.get('/', (req, res) => {
     `);
 });
 
-// BACKEND LOGIC WITH FIXED BROWSER IDENTIFICATION
+// BACKEND LOGIC WITH UPDATED STABILITY FIXES
 app.get('/pair', async (req, res) => {
     let phone = req.query.number;
     if (!phone) return res.json({ error: "Number missing!" });
 
     try {
-        // Naya unique session create karna har request ke liye
+        // Unique session for every request
         const { state } = await useMultiFileAuthState('session_' + Math.random().toString(36).substring(7));
         
         const sock = makeWASocket({
             auth: state,
             printQRInTerminal: false,
             logger: pino({ level: "silent" }),
-            // YE HAI FIX: WhatsApp ab ise real Chrome samjhega
-            browser: ["Chrome (Linux)", "", ""] 
+            // FIXED BROWSER IDENTIFICATION
+            browser: ["Ubuntu", "Chrome", "20.0.04"] 
         });
 
         if (!sock.authState.creds.registered) {
-            await delay(3000); // 3 seconds wait taake socket stable ho jaye
+            // INCREASED DELAY FOR STABILITY (5 Seconds)
+            await delay(5000); 
             const code = await sock.requestPairingCode(phone.replace(/[^0-9]/g, ''));
             res.json({ code: code });
         } else {
