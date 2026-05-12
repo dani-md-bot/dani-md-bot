@@ -1,63 +1,44 @@
 const express = require('express');
-const { default: makeWASocket, useMultiFileAuthState, delay } = require("@whiskeysockets/baileys");
+const { default: makeWASocket, useMultiFileAuthState, delay, fetchLatestBaileysVersion } = require("@whiskeysockets/baileys");
 const pino = require('pino');
 
 const app = express();
 const port = process.env.PORT || 8080;
 
-// PROFESSIONAL UI DESIGN
 app.get('/', (req, res) => {
     res.send(`
         <!DOCTYPE html>
-        <html lang="en">
+        <html>
         <head>
-            <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>DANI-MD PAIRING</title>
+            <title>DANI-MD FIXED</title>
             <style>
-                body { font-family: 'Poppins', sans-serif; background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-                .box { background: #1e293b; padding: 40px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); text-align: center; width: 100%; max-width: 420px; border: 1px solid #334155; }
-                h1 { color: #38bdf8; font-size: 28px; margin-bottom: 5px; letter-spacing: 1px; }
-                p { color: #94a3b8; margin-bottom: 30px; font-size: 14px; }
-                input { width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #334155; background: #0f172a; color: white; font-size: 16px; box-sizing: border-box; outline: none; transition: 0.3s; margin-bottom: 20px; }
-                input:focus { border-color: #38bdf8; }
-                button { width: 100%; padding: 15px; border-radius: 12px; border: none; background: #38bdf8; color: #0f172a; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-                button:hover { background: #7dd3fc; transform: translateY(-2px); }
-                #displayCode { margin-top: 25px; padding: 20px; border-radius: 12px; background: #000; color: #10b981; font-size: 32px; font-weight: bold; letter-spacing: 4px; display: none; border: 2px dashed #10b981; }
-                .loading { color: #facc15; font-weight: bold; margin-top: 15px; display: none; }
+                body { background: #0f172a; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+                .card { background: #1e293b; padding: 30px; border-radius: 20px; text-align: center; width: 90%; max-width: 350px; }
+                input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; }
+                button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #38bdf8; color: #0f172a; font-weight: bold; cursor: pointer; }
+                #result { margin-top: 20px; font-size: 28px; color: #10b981; font-weight: bold; letter-spacing: 3px; }
             </style>
         </head>
         <body>
-            <div class="box">
-                <h1>DANI-MD</h1>
-                <p>Enter number with country code (e.g. 923...)</p>
-                <input type="number" id="phoneNumber" placeholder="923xxxxxxxxx">
-                <button onclick="requestCode()">GENERATE CODE</button>
-                <div id="loading" class="loading">PLEASE WAIT, SYNCING...</div>
-                <div id="displayCode"></div>
+            <div class="card">
+                <h2>DANI-MD</h2>
+                <p>Enter number with Country Code</p>
+                <input type="number" id="num" placeholder="e.g. 923259379507">
+                <button onclick="get()">GENERATE CODE</button>
+                <div id="result"></div>
             </div>
             <script>
-                async function requestCode() {
-                    const num = document.getElementById('phoneNumber').value;
-                    const codeDiv = document.getElementById('displayCode');
-                    const loadDiv = document.getElementById('loading');
-                    if(!num || num.length < 10) return alert('Sahi number enter karein!');
-                    codeDiv.style.display = 'none';
-                    loadDiv.style.display = 'block';
+                async function get() {
+                    const n = document.getElementById('num').value;
+                    const r = document.getElementById('result');
+                    if(!n) return alert('Number please!');
+                    r.innerText = 'WAITING...';
                     try {
-                        const response = await fetch('/pair?number=' + num);
-                        const data = await response.json();
-                        loadDiv.style.display = 'none';
-                        if(data.code) {
-                            codeDiv.style.display = 'block';
-                            codeDiv.innerText = data.code;
-                        } else {
-                            alert(data.error || 'Server Busy, Try Again');
-                        }
-                    } catch (e) {
-                        loadDiv.style.display = 'none';
-                        alert('Error! Connection Issue.');
-                    }
+                        const res = await fetch('/pair?number=' + n);
+                        const data = await res.json();
+                        r.innerText = data.code || data.error || 'ERROR';
+                    } catch(e) { r.innerText = 'FAILED'; }
                 }
             </script>
         </body>
@@ -65,37 +46,30 @@ app.get('/', (req, res) => {
     `);
 });
 
-// BACKEND LOGIC WITH UPDATED STABILITY FIXES
 app.get('/pair', async (req, res) => {
     let phone = req.query.number;
-    if (!phone) return res.json({ error: "Number missing!" });
-
     try {
-        // Unique session for every request
-        const { state } = await useMultiFileAuthState('session_' + Math.random().toString(36).substring(7));
-        
+        // Har baar bilkul naya session folder banega
+        const sessionName = 'session_' + Date.now();
+        const { state } = await useMultiFileAuthState(sessionName);
+        const { version } = await fetchLatestBaileysVersion();
+
         const sock = makeWASocket({
+            version,
             auth: state,
             printQRInTerminal: false,
             logger: pino({ level: "silent" }),
-            // FIXED BROWSER IDENTIFICATION
-            browser: ["Ubuntu", "Chrome", "20.0.04"] 
+            browser: ["Chrome (Linux)", "", ""]
         });
 
         if (!sock.authState.creds.registered) {
-            // INCREASED DELAY FOR STABILITY (5 Seconds)
-            await delay(5000); 
+            await delay(5000); // 5 seconds wait for stability
             const code = await sock.requestPairingCode(phone.replace(/[^0-9]/g, ''));
             res.json({ code: code });
-        } else {
-            res.json({ message: "Already Linked" });
         }
     } catch (e) {
-        console.log(e);
-        res.json({ error: "Server Busy" });
+        res.json({ error: "Try Again" });
     }
 });
 
-app.listen(port, "0.0.0.0", () => {
-    console.log(`Server live on port ${port}`);
-});
+app.listen(port, "0.0.0.0");
